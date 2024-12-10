@@ -84,6 +84,7 @@ def join_and_get_pseudotime_fntr(
     offset_col: str | list[str],
     pseudotime_col: str | list[str],
     output_data_cols: list[str] | None = None,
+    exclude_rows: dict | None = None,
     warning_items: list[str] | None = None,
 ) -> Callable[[pl.LazyFrame, pl.LazyFrame], pl.LazyFrame]:
     """Returns a function that joins a dataframe to the `patient` table and adds pseudotimes.
@@ -105,6 +106,8 @@ def join_and_get_pseudotime_fntr(
             - "unit"
             - "registeredby"
             - "updatedby"
+        exclude_rows: 
+            measuredat: -1899
         warning_items:
             - "How should we deal with `registeredat` and `updatedat`?"
 
@@ -114,6 +117,7 @@ def join_and_get_pseudotime_fntr(
         pseudotime_col: list of all timestamp columns derived from `offset_col` and the linked `patient`
             table
         output_data_cols: list of all data columns included in the output
+        exclude_rows: list of column: value pairs based on which certain rows are removed from the dataset
         warning_items: any warnings noted in the table_preprocessors.yaml
 
     Returns:
@@ -124,6 +128,7 @@ def join_and_get_pseudotime_fntr(
         >>> func = join_and_get_pseudotime_fntr("numericitems", ["measuredat", "registeredat", "updatedat"],
         ["measuredattime", "registeredattime", "updatedattime"],
         ["item", "value", "unit", "registeredby", "updatedby"],
+        {"measuredat": -1899},
         ["How should we deal with `registeredat` and `updatedat`?"])`
         >>> df = load_raw_aumc_file(in_fp)
         >>> raw_admissions_df = load_raw_aumc_file(Path("admissions.csv"))
@@ -153,6 +158,13 @@ def join_and_get_pseudotime_fntr(
         The output of this process is ultimately converted to events via the `{table_name}` key in the
         `configs/event_configs.yaml` file.
         """
+        if exclude_rows is not None: 
+            filter_exprs = [
+                pl.col(col_name).ne(val)
+                for col_name, val in exclude_rows.items()
+            ]
+            df = df.filter(*filter_exprs)
+
         pseudotimes = [
             (pl.col("firstadmittedattime") + pl.duration(milliseconds=pl.col(offset))).alias(pseudotime)
             for pseudotime, offset in zip(pseudotime_col, offset_col)

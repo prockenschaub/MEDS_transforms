@@ -31,8 +31,11 @@ numericitems:
     - "unit"
     - "registeredby"
     - "updatedby"
+  exclude_rows: 
+    measuredat: -1899
   warning_items:
     - "How should we deal with `registeredat` and `updatedat`?"
+    - "Measurements with a `measuredat` == -1899 are excluded, as they seem to leak information from the future."
 
 listitems:
   offset_col:
@@ -49,8 +52,11 @@ listitems:
     - "islabresult"
     - "registeredby"
     - "updatedby"
+  exclude_rows: 
+    measuredat: -1899
   warning_items:
     - "How should we deal with `registeredat` and `updatedat`?"
+    - "Measurements with a `measuredat` == -1899 are excluded, as they seem to leak information from the future."
 
 freetextitems:
   offset_col:
@@ -68,8 +74,11 @@ freetextitems:
     - "islabresult"
     - "registeredby"
     - "updatedby"
+  exclude_rows: 
+    measuredat: -1899
   warning_items:
     - "How should we deal with `registeredat` and `updatedat`?"
+    - "Measurements with a `measuredat` == -1899 are excluded, as they seem to leak information from the future."
 
 drugitems:
   offset_col:
