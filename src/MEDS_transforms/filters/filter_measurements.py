@@ -18,6 +18,7 @@ def filter_measurements_fntr(
     Args:
         df: The input DataFrame.
         stage_cfg: The configuration for the code filtering stage.
+        code_modifiers: TODO
 
     Returns:
         The processed DataFrame.
@@ -97,6 +98,32 @@ def filter_measurements_fntr(
         ╞════════════╪══════╪═══════════╡
         │ 2          ┆ A    ┆ 2         │
         └────────────┴──────┴───────────┘
+        >>> stage_cfg = DictConfig({"include_codes": ["A", "B"]})
+        >>> fn = filter_measurements_fntr(stage_cfg, code_metadata_df, ["modifier1"])
+        >>> fn(data).collect()
+        shape: (3, 3)
+        ┌────────────┬──────┬───────────┐
+        │ subject_id ┆ code ┆ modifier1 │
+        │ ---        ┆ ---  ┆ ---       │
+        │ i64        ┆ str  ┆ i64       │
+        ╞════════════╪══════╪═══════════╡
+        │ 1          ┆ A    ┆ 1         │
+        │ 1          ┆ B    ┆ 1         │
+        │ 2          ┆ A    ┆ 2         │
+        └────────────┴──────┴───────────┘
+        >>> stage_cfg = DictConfig({"exclude_codes": ["C"]})
+        >>> fn = filter_measurements_fntr(stage_cfg, code_metadata_df, ["modifier1"])
+        >>> fn(data).collect()
+        shape: (3, 3)
+        ┌────────────┬──────┬───────────┐
+        │ subject_id ┆ code ┆ modifier1 │
+        │ ---        ┆ ---  ┆ ---       │
+        │ i64        ┆ str  ┆ i64       │
+        ╞════════════╪══════╪═══════════╡
+        │ 1          ┆ A    ┆ 1         │
+        │ 1          ┆ B    ┆ 1         │
+        │ 2          ┆ A    ┆ 2         │
+        └────────────┴──────┴───────────┘
 
     This stage works even if the default row index column exists:
         >>> code_metadata_df = pl.DataFrame({
@@ -125,10 +152,16 @@ def filter_measurements_fntr(
         └────────────┴──────┴───────────┴──────────┘
     """
 
+    include_codes = stage_cfg.get("include_codes", None)
+    exclude_codes = stage_cfg.get("exclude_codes", None)
     min_subjects_per_code = stage_cfg.get("min_subjects_per_code", None)
     min_occurrences_per_code = stage_cfg.get("min_occurrences_per_code", None)
 
     filter_exprs = []
+    if include_codes is not None: 
+        filter_exprs.append(pl.col("code").str.contains("|".join(include_codes)))
+    if exclude_codes is not None: 
+        filter_exprs.append(~pl.col("code").str.contains("|".join(exclude_codes)))
     if min_subjects_per_code is not None:
         filter_exprs.append(pl.col("code/n_subjects") >= min_subjects_per_code)
     if min_occurrences_per_code is not None:
@@ -146,8 +179,11 @@ def filter_measurements_fntr(
     def filter_measurements_fn(df: pl.LazyFrame) -> pl.LazyFrame:
         f"""Filters subject events to only encompass those with a set of permissible codes.
 
-        In particular, this function filters the DataFrame to only include (code, modifier) pairs that have
-        at least {min_subjects_per_code} subjects and {min_occurrences_per_code} occurrences.
+        In particular, this function filters the DataFrame to only include (code, modifier) pairs that: 
+            - are listed in {include_codes}
+            - are not listed in {exclude_codes}
+            - have at least {min_subjects_per_code} subjects
+            - have at least {min_occurrences_per_code} occurrences.
         """
 
         idx_col = "_row_idx"
